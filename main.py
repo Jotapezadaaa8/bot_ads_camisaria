@@ -129,7 +129,7 @@ class AdsBot:
             self.produtos_sessao = encontrados 
             self.erros_seguidos = 0
 
-        if any(s in t for s in ["oi", "olá", "bom dia", "menu", "ajuda", "valeu", "cole", "coe", "fala"]):
+        if any(s in t for s in ["oi", "olá", "bom dia", "menu", "ajuda", "valeu", "cole", "coe", "fala","boa tarde", "boa noite"]):
             self.resetar_sessao()
             return ("👋 Olá! Sou o assistente da Adis Camisaria.\n\n"
                     "1️⃣ **Reposição** | 2️⃣ **Especificações** | 3️⃣ **Atacado** | 4️⃣ **Qualidade** | 5️⃣ **Preços**")
