@@ -49,31 +49,41 @@ class AdsBot:
         numeros = [int(s) for s in t.split() if s.isdigit()]
         total_solicitado = sum(numeros)
 
-        # INTERCEPCAO CRÍTICA: Processamento unificado para múltiplos modelos e verificação de estoque
+        # INTERCEPCAO CRÍTICA: Processamento unificado para múltiplos modelos e verificação híbrida de estoque
         if self.memoria == "aguardando_quantidade" and numeros:
             if total_solicitado < 100:
                 return f"⚠️ O total informado ({total_solicitado} peças) é inferior ao mínimo de 100 peças para atacado. Deseja ajustar a quantidade?"
             
-            # Validação inteligente de estoque baixo/insuficiente para atacado
-            insuficiente = [p for p in self.produtos_sessao if total_solicitado > self.PRODUTOS[p]['estoque_atacado'] or self.PRODUTOS[p]['estoque_atacado'] < 100]
+            # Divide os produtos selecionados entre pronta-entrega e estoque baixo
+            disponiveis = [p for p in self.produtos_sessao if self.PRODUTOS[p]['estoque_atacado'] >= 100 and total_solicitado <= self.PRODUTOS[p]['estoque_atacado']]
+            insuficiente = [p for p in self.produtos_sessao if self.PRODUTOS[p]['estoque_atacado'] < 100 or total_solicitado > self.PRODUTOS[p]['estoque_atacado']]
             
             if insuficiente:
                 self.memoria = "aguardando_confirmacao_encomenda"
-                nomes_produtos = ", ".join([p.title() for p in insuficiente])
-                return (f"⚠️ Infelizmente, a quantidade em estoque para o modelo ({nomes_produtos}) é abaixo do necessário para pronta-entrega em atacado.\n\n"
-                        f"Porém, indicamos fazer por **encomenda**! Mantemos o mesmo preço de atacado e produzimos tudo em até 15 dias. Deseja fechar seu pedido por encomenda?")
+                
+                # Monta a resposta explicando o que tem e o que vai para encomenda
+                nomes_insuficiente = ", ".join([p.title() for p in insuficiente])
+                msg_retorno = ""
+                
+                if disponiveis:
+                    nomes_disponiveis = ", ".join([p.title() for p in disponiveis])
+                    msg_retorno += f"✅ Para o modelo ({nomes_disponiveis}), temos estoque disponível para envio imediato!\n\n"
+                
+                msg_retorno += (f"⚠️ Porém, a quantidade em estoque para o modelo ({nomes_insuficiente}) é abaixo do necessário para pronta-entrega em atacado.\n\n"
+                                f"Indicamos fazer a parte deste modelo por **encomenda**! Mantemos o preço de atacado e produzimos em até 15 dias. Deseja seguir com os itens disponíveis e encomendar o restante?")
+                return msg_retorno
 
             self.memoria = "aguardando_grade"
             return f"✅ **{total_solicitado} peças** registradas com sucesso! Agora, por favor, me informe a **grade** desejada em apenas 1 mensagem (tamanhos e cores)."
 
-        # LÓGICA COMPLEMENTAR DA ENCOMENDA
+        # LÓGICA COMPLEMENTAR DA ENCOMENDA HÍBRIDA
         if self.memoria == "aguardando_confirmacao_encomenda":
             if any(s in t for s in ["sim", "quero", "pode", "ok", "aceito", "com certeza"]):
                 self.memoria = "aguardando_grade"
-                return "✅ Perfeito! Excelente escolha. Agora, por favor, me informe a **grade** desejada para a encomenda em apenas 1 mensagem (tamanhos e cores)."
+                return "✅ Perfeito! Excelente escolha. Agora, por favor, me informe a **grade** desejada de todo o pedido em apenas 1 mensagem (especificando tamanhos e cores)."
             else:
                 self.resetar_sessao()
-                return "Sem problemas! Caso queira consultar outro modelo disponível para pronta-entrega, basta digitar 'Menu' ou escolher uma opção."
+                return "Sem problemas! Caso queira ajustar o pedido ou consultar outro modelo pronto para entrega, basta digitar 'Menu'."
 
         if self.memoria == "aguardando_grade":
             self.memoria = None
@@ -89,11 +99,10 @@ class AdsBot:
         elif "4" in t or "qualidade" in t: self.memoria = "4"
         elif "5" in t or "preço" in t: self.memoria = "5"
 
-        # 4. CAPTURA DE PRODUTOS (Tratamento preciso de substring e remoção de conectivos)
+        # 4. CAPTURA DE PRODUTOS
         t_limpo = f" {t} ".replace(" de ", " ").replace(" da ", " ").replace(" do ", " ")
         encontrados = []
         
-        # Garante casamento exato das chaves do dicionário
         if "linho" in t_limpo:
             encontrados.append("camisa linho")
         if "polo" in t_limpo:
