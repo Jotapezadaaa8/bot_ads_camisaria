@@ -15,7 +15,7 @@ class AdsBot:
                 "previsao": "Disponível",
                 "specs": "Tecido Dry Fit esportivo com proteção UV.",
                 "estoque_atacado": 200, 
-                "qualidade": "Fabricada em tecido Dry Fit esportivo de alta performance com proteção UV integrada. Possui tecnologia avançada de secagem rápida, ideal para atividades físicas intensas.", 
+                "qualidade": "Fabricada em tecido Dry Fit esportivo de alta performance com proteção UV integrada.", 
                 "preco": "R$ 39,90"
             },
             "camisa linho": {
@@ -34,7 +34,6 @@ class AdsBot:
             }
         }
         
-        # Variações para busca robusta
         self.VARIACOES = {
             "camisa polo": ["polo", "gola polo", "camisa polo", "camisaria polo"],
             "regata": ["regata", "regatas", "camisa regata", "camiseta regata", "dry fit"],
@@ -56,27 +55,44 @@ class AdsBot:
         numeros = [int(s) for s in t.split() if s.isdigit()]
         total_solicitado = sum(numeros)
 
-        # Lógica de Atacado (Quantidade/Grade)
+        # --- LÓGICA DE ATACADO CORRIGIDA (QUANTIDADE/ESTOQUE) ---
         if self.memoria == "aguardando_quantidade" and numeros:
             if total_solicitado < 100:
                 return f"⚠️ O total informado ({total_solicitado} peças) é inferior ao mínimo de 100 peças para atacado. Deseja ajustar a quantidade?"
             
-            disponiveis, insuficiente = [], []
+            disponiveis = []
+            insuficiente = []
+            quantidades_por_produto = {}
+            
+            # Distribuição das quantidades para checagem individual
+            if len(numeros) == len(self.produtos_sessao):
+                for i, p in enumerate(self.produtos_sessao):
+                    quantidades_por_produto[p] = numeros[i]
+            else:
+                por_item = total_solicitado / len(self.produtos_sessao)
+                for p in self.produtos_sessao:
+                    quantidades_por_produto[p] = por_item
+
             for p in self.produtos_sessao:
-                if self.PRODUTOS[p]['estoque_atacado'] >= total_solicitado:
-                    disponiveis.append(p.title())
+                qtd_vontade = quantidades_por_produto[p]
+                if self.PRODUTOS[p]['estoque_atacado'] >= qtd_vontade:
+                    disponiveis.append(f"• **{p.title()}**: {int(qtd_vontade)} peças (Pronta Entrega)")
                 else:
-                    insuficiente.append(p.title())
+                    insuficiente.append(f"• **{p.title()}**: {int(qtd_vontade)} peças (Encomenda 15 dias)")
 
             if insuficiente:
                 self.memoria = "aguardando_confirmacao_encomenda"
-                msg = f"✅ Disponível: {', '.join(disponiveis)}\n\n" if disponiveis else ""
-                msg += f"⚠️ O modelo ({', '.join(insuficiente)}) exige **encomenda** (15 dias) para esta quantidade. Deseja seguir?"
+                msg = "📋 **Análise do seu pedido de Atacado:**\n\n"
+                if disponiveis:
+                    msg += "✅ **Disponível em Estoque:**\n" + "\n".join(disponiveis) + "\n\n"
+                msg += "⚠️ **Necessita Encomenda:**\n" + "\n".join(insuficiente) + "\n\n"
+                msg += "Deseja seguir com o pedido nestas condições?"
                 return msg
 
             self.memoria = "aguardando_grade"
-            return f"✅ **{total_solicitado} peças** registradas! Informe a **grade** (tamanhos e cores) em uma mensagem."
+            return f"✅ **{total_solicitado} peças** registradas! Tudo disponível em estoque. Informe a **grade** (tamanhos e cores)."
 
+        # --- FLUXO DE CONFIRMAÇÃO ---
         if self.memoria == "aguardando_confirmacao_encomenda":
             if any(s in t for s in ["sim", "quero", "pode", "ok", "aceito"]):
                 self.memoria = "aguardando_grade"
@@ -88,49 +104,33 @@ class AdsBot:
             self.memoria = None
             return "📝 Recebido! Nosso comercial entrará em contato por e-mail em breve. Mais alguma dúvida?"
 
-        # --- CORREÇÃO DA IDENTIFICAÇÃO (PROBLEMA IMAGEM 1 E 2) ---
-        
-        # 1. Verifica se o usuário escolheu uma opção do menu
-        opcoes_menu = {
-            "1": "1", "reposição": "1", "reposicao": "1",
-            "2": "2", "especificação": "2", "especificacao": "2",
-            "3": "3", "atacado": "3",
-            "4": "4", "qualidade": "4",
-            "5": "5", "preço": "5", "preco": "5"
-        }
-        
+        # --- MENU E IDENTIFICAÇÃO ---
+        opcoes_menu = {"1": "1", "2": "2", "3": "3", "4": "4", "5": "5"}
         nova_opcao = None
-        for chave, valor in opcoes_menu.items():
+        for chave in opcoes_menu:
             if chave == t or f" {chave} " in f" {t} ":
-                nova_opcao = valor
+                nova_opcao = opcoes_menu[chave]
                 break
         
-        if nova_opcao:
-            self.memoria = nova_opcao
-            # Se mudou de opção de menu, não limpamos os produtos_sessao imediatamente 
-            # para permitir que "5" funcione após o usuário já ter digitado o produto.
+        if nova_opcao: self.memoria = nova_opcao
 
-        # 2. Busca de produtos (Correção da Imagem 2 - Identificar se o produto NÃO existe)
         encontrados = []
         for modelo, variacoes in self.VARIACOES.items():
             if any(v in t for v in variacoes):
                 encontrados.append(modelo)
         
-        # Se ele digitou algo mas não encontrou nada no nosso catálogo, limpamos a lista
-        # Isso evita que "Camisa Oxford" responda como "Camisa Polo"
-        if not encontrados and not nova_opcao and not any(s in t for s in ["oi", "menu"]):
-             self.produtos_sessao = []
-        elif encontrados:
+        if encontrados:
             self.produtos_sessao = encontrados
             self.erros_seguidos = 0
+        elif not nova_opcao and not any(s in t for s in ["oi", "menu"]):
+            if self.memoria not in ["1","2","3","4","5"]: self.produtos_sessao = []
 
-        # Saudação / Menu
-        if any(s in t for s in ["oi", "olá", "bom dia", "menu", "ajuda", "boa tarde", "boa noite"]):
+        if any(s in t for s in ["oi", "olá", "menu", "ajuda"]):
             self.resetar_sessao()
             return ("👋 Olá! Sou o assistente da Adis Camisaria.\n\n"
                     "1️⃣ **Reposição** | 2️⃣ **Especificações** | 3️⃣ **Atacado** | 4️⃣ **Qualidade** | 5️⃣ **Preços**")
 
-        # Respostas Baseadas na Memória
+        # --- RESPOSTAS POR CATEGORIA ---
         if self.memoria == "1":
             if self.produtos_sessao:
                 res = [f"{'✅' if self.PRODUTOS[p]['previsao'].lower() == 'disponível' else '📅'} **{p.title()}**: {self.PRODUTOS[p]['previsao']}" for p in self.produtos_sessao]
@@ -168,13 +168,15 @@ class AdsBot:
     def resetar_sessao(self):
         self.memoria, self.produtos_sessao, self.erros_seguidos = None, [], 0
 
-# Streamlit
+# Streamlit App
 st.set_page_config(page_title="ADS Camisaria", page_icon="👕")
 st.title("👕 ADS Camisaria - Atendimento")
 if "bot" not in st.session_state: st.session_state.bot = AdsBot()
 if "messages" not in st.session_state: st.session_state.messages = []
+
 for m in st.session_state.messages:
     with st.chat_message(m["role"]): st.markdown(m["content"])
+
 if prompt := st.chat_input("Diga o que você precisa..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"): st.markdown(prompt)
