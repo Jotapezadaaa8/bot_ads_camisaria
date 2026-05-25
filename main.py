@@ -4,7 +4,7 @@ import streamlit as st
 class AdsBot:
     def __init__(self):
         self.PRODUTOS = {
-            "camisa polo": {
+            "polo": {
                 "previsao": "15/06/2026",
                 "specs": "Algodão Pima com elastano, gola estruturada.",
                 "estoque_atacado": 150, 
@@ -18,14 +18,14 @@ class AdsBot:
                 "qualidade": "Fabricada em tecido Dry Fit esportivo de alta performance com proteção UV integrada. Possui tecnologia avançada de secagem rápida, ideal para atividades físicas intensas.", 
                 "preco": "R$ 39,90"
             },
-            "camisa linho": {
+            "linho": {
                 "previsao": "05/07/2026",
                 "specs": "Linho Puro com corte alfaiataria slim.",
                 "estoque_atacado": 20, 
                 "qualidade": "Linho premium de origem sustentável.", 
                 "preco": "R$ 159,00"
             },
-            "camiseta basica": {
+            "basica" "básica": {
                 "previsao": "Disponível",
                 "specs": "100% Algodão 30.1 penteado.",
                 "estoque_atacado": 500, 
