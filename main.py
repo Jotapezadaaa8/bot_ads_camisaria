@@ -11,18 +11,11 @@ class AdsBot:
                 "qualidade": "Alta durabilidade e toque sedoso premium.", 
                 "preco": "R$ 89,90"
             },
-            "polo": {
-                "previsao": "15/06/2026",
-                "specs": "Algodão Pima com elastano, gola estruturada.",
-                "estoque_atacado": 150, 
-                "qualidade": "Produzida com Algodão Pima legítimo.", 
-                "preco": "R$ 89,90"
-            },
             "regata": {
                 "previsao": "Disponível",
                 "specs": "Tecido Dry Fit esportivo com proteção UV.",
                 "estoque_atacado": 200, 
-                "qualidade": "Fabricada em tecido Dry Fit esportivo de alta performance com proteção UV integrada.Possui tecnologia avançada de secagem rápida, ideal para atividades físicas intensas.", 
+                "qualidade": "Fabricada em tecido Dry Fit esportivo de alta performance com proteção UV integrada. Possui tecnologia avançada de secagem rápida, ideal para atividades físicas intensas.", 
                 "preco": "R$ 39,90"
             },
             "camisa linho": {
@@ -56,30 +49,31 @@ class AdsBot:
         numeros = [int(s) for s in t.split() if s.isdigit()]
         total_solicitado = sum(numeros)
 
-        # INTERCEPCAO CRÍTICA: Lógica de Atacado / Encomenda
+        # INTERCEPCAO CRÍTICA: Processamento unificado para múltiplos modelos e verificação de estoque
         if self.memoria == "aguardando_quantidade" and numeros:
             if total_solicitado < 100:
                 return f"⚠️ O total informado ({total_solicitado} peças) é inferior ao mínimo de 100 peças para atacado. Deseja ajustar a quantidade?"
             
-            # Verifica se há estoque para todos os produtos selecionados
-            estoque_insuficiente = False
-            for p in self.produtos_sessao:
-                if total_solicitado > self.PRODUTOS[p]['estoque_atacado']:
-                    estoque_insuficiente = True
-                    break
+            # Validação inteligente de estoque baixo/insuficiente para atacado
+            insuficiente = [p for p in self.produtos_sessao if total_solicitado > self.PRODUTOS[p]['estoque_atacado'] or self.PRODUTOS[p]['estoque_atacado'] < 100]
             
-            if estoque_insuficiente:
+            if insuficiente:
                 self.memoria = "aguardando_confirmacao_encomenda"
-                return (f"📦 Notei que o total de **{total_solicitado} peças** excede nosso estoque pronta-entrega para alguns modelos.\n\n"
-                        "Podemos seguir via **encomenda**! O prazo de produção é de 15 dias, mantendo o valor de atacado. Podemos registrar seu pedido assim?")
+                nomes_produtos = ", ".join([p.title() for p in insuficiente])
+                return (f"⚠️ Infelizmente, a quantidade em estoque para o modelo ({nomes_produtos}) é abaixo do necessário para pronta-entrega em atacado.\n\n"
+                        f"Porém, indicamos fazer por **encomenda**! Mantemos o mesmo preço de atacado e produzimos tudo em até 15 dias. Deseja fechar seu pedido por encomenda?")
 
+            self.memoria = "aguardando_grade"
+            return f"✅ **{total_solicitado} peças** registradas com sucesso! Agora, por favor, me informe a **grade** desejada em apenas 1 mensagem (tamanhos e cores)."
+
+        # LÓGICA COMPLEMENTAR DA ENCOMENDA
         if self.memoria == "aguardando_confirmacao_encomenda":
-            if any(s in t for s in ["sim", "pode", "ok", "quero", "aceito"]):
+            if any(s in t for s in ["sim", "quero", "pode", "ok", "aceito", "com certeza"]):
                 self.memoria = "aguardando_grade"
-                return "✅ Ótima escolha! Pedido por encomenda pré-aprovado. Agora, por favor, me informe a **grade** desejada (tamanhos e cores)."
+                return "✅ Perfeito! Excelente escolha. Agora, por favor, me informe a **grade** desejada para a encomenda em apenas 1 mensagem (tamanhos e cores)."
             else:
                 self.resetar_sessao()
-                return "Entendido. Caso mude de ideia ou queira outros modelos pronta-entrega, basta chamar no menu!"
+                return "Sem problemas! Caso queira consultar outro modelo disponível para pronta-entrega, basta digitar 'Menu' ou escolher uma opção."
 
         if self.memoria == "aguardando_grade":
             self.memoria = None
@@ -95,10 +89,20 @@ class AdsBot:
         elif "4" in t or "qualidade" in t: self.memoria = "4"
         elif "5" in t or "preço" in t: self.memoria = "5"
 
-        # 4. CAPTURA DE PRODUTOS
-        t_limpo = t.replace(" de ", " ").replace(" da ", " ").replace(" do ", " ")
-        encontrados = [p for p in self.PRODUTOS if p in t or p in t_limpo]
+        # 4. CAPTURA DE PRODUTOS (Tratamento preciso de substring e remoção de conectivos)
+        t_limpo = f" {t} ".replace(" de ", " ").replace(" da ", " ").replace(" do ", " ")
+        encontrados = []
         
+        # Garante casamento exato das chaves do dicionário
+        if "linho" in t_limpo:
+            encontrados.append("camisa linho")
+        if "polo" in t_limpo:
+            encontrados.append("camisa polo")
+        if "regata" in t_limpo:
+            encontrados.append("regata")
+        if "basica" in t_limpo or "básica" in t_limpo:
+            encontrados.append("camiseta basica")
+            
         if encontrados:
             self.produtos_sessao = encontrados 
             self.erros_seguidos = 0
@@ -112,19 +116,14 @@ class AdsBot:
         # 6. LÓGICA DE RESPOSTA IMEDIATA
         if self.memoria == "1":
             if self.produtos_sessao:
-                itens_unicos = list(dict.fromkeys(self.produtos_sessao))
-                if "camisa polo" in itens_unicos and "polo" in itens_unicos:
-                    itens_unicos.remove("polo")
-                
                 res = []
-                for p in itens_unicos:
+                for p in self.produtos_sessao:
                     status = self.PRODUTOS[p]['previsao']
                     if status.lower() == "disponível":
                         msg = f"✅ **{p.title()}**: Atualmente em estoque e disponível para envio imediato!"
                     else:
                         msg = f"📅 **{p.title()}**: A previsão de chegada de novo lote é para o dia **{status}**."
                     res.append(msg)
-                
                 return "Sobre a reposição solicitada:\n\n" + "\n".join(res)
             return "🔍 De qual modelo você deseja saber a reposição? (Ex: Camisa de Linho, Polo, etc)"
 
@@ -136,12 +135,9 @@ class AdsBot:
 
         if self.memoria == "3":
             if self.produtos_sessao:
-                itens_unicos = list(dict.fromkeys(self.produtos_sessao))
-                if "camisa polo" in itens_unicos and "polo" in itens_unicos:
-                    itens_unicos.remove("polo")
-                res = [f"• **{p.title()}**: {self.PRODUTOS[p]['estoque_atacado']} em estoque." for p in itens_unicos]
+                res = [f"• **{p.title()}**: {self.PRODUTOS[p]['estoque_atacado']} em estoque." for p in self.produtos_sessao]
                 self.memoria = "aguardando_quantidade"
-                return (f"📦 Estoque disponível:\n\n" + "\n".join(res) + 
+                return (f"📦 Estoque para atacado:\n\n" + "\n".join(res) + 
                         "\n\nQual a **quantidade total** que você deseja? (Mínimo de 100 peças. Ex: *Quero 100 polo e 100 regata* ou apenas *200*)")
             return "📦 Para atacado, qual modelo você deseja consultar?"
 
@@ -153,10 +149,7 @@ class AdsBot:
 
         if self.memoria == "5":
             if self.produtos_sessao:
-                itens_unicos = list(dict.fromkeys(self.produtos_sessao))
-                if "camisa polo" in itens_unicos and "polo" in itens_unicos:
-                    itens_unicos.remove("polo")
-                res = [f"💰 **{p.title()}**: {self.PRODUTOS[p]['preco']}" for p in itens_unicos]
+                res = [f"💰 **{p.title()}**: {self.PRODUTOS[p]['preco']}" for p in self.produtos_sessao]
                 return "Valores atuais:\n\n" + "\n".join(res)
             return "💰 Qual produto você deseja consultar o preço?"
 
