@@ -118,20 +118,18 @@ class AdsBot:
             if any(v in t for v in variacoes):
                 encontrados.append(modelo)
         
-        # --- FILTRO DE NICHO (ALFAIATARIA) ---
-        # Se o usuário mencionou produtos comuns que NÃO temos (esporte, jeans, etc)
-        itens_fora_nicho = ["bermuda", "calça", "jeans", "moletom", "jaqueta", "sapato", "tenis", "esporte", "academia"]
-        if any(item in t for item in itens_fora_nicho) and not encontrados:
+        # --- FILTRO DE NICHO (RESPOSTA IMEDIATA PARA ITENS FORA DE LINHA) ---
+        if not encontrados and not nova_opcao and not any(s in t for s in ["oi", "olá", "menu", "ajuda"]):
+            # Caso contenha palavras de esporte/outros times ou o item não esteja no catálogo
             return ("🚫 A Adis Camisaria é especialista em **Alfaiataria Premium**.\n\n"
-                    "Não trabalhamos com essa linha de produtos. Que tal conferir nossas **Camisas de Linho** ou **Polos Pima**? São excelentes opções para manter a elegância.")
+                    "Não trabalhamos com essa linha de produtos (como artigos esportivos ou casuais fora do catálogo). "
+                    "Que tal conferir nossas **Camisas de Linho** ou **Polos Pima**? São nossas especialidades.")
 
         if encontrados:
             self.produtos_sessao = encontrados
             self.erros_seguidos = 0
         elif not nova_opcao and not any(s in t for s in ["oi", "menu", "ajuda"]):
-            # Se ele digitou algo que não reconhecemos e não é saudação, tratamos como fora de linha
-            if self.memoria not in ["1","2","3","4","5"] and len(t) > 3:
-                return "🧐 Não trabalhamos com essa linha de produtos. Nossa especialidade é a **Alfaiataria Masculina**. Deseja ver os modelos disponíveis no Menu?"
+            if self.memoria not in ["1","2","3","4","5"]: self.produtos_sessao = []
 
         if any(s in t for s in ["oi", "olá", "menu", "ajuda"]):
             self.resetar_sessao()
