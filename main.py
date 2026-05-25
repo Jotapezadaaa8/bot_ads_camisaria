@@ -34,6 +34,7 @@ class AdsBot:
             }
         }
         
+        # Variações para busca robusta
         self.VARIACOES = {
             "camisa polo": ["polo", "gola polo", "camisa polo", "camisaria polo"],
             "regata": ["regata", "regatas", "camisa regata", "camiseta regata", "dry fit"],
@@ -44,9 +45,6 @@ class AdsBot:
         self.memoria = None
         self.produtos_sessao = []
         self.erros_seguidos = 0
-        
-        # Lista formatada para facilitar a exibição
-        self.PRODUTOS_DISPONIVEIS = "\n" + "\n".join([f"• {p.title()}" for p in self.PRODUTOS.keys()])
 
     def responder(self, mensagem: str) -> str:
         t = mensagem.lower().strip()
@@ -58,6 +56,7 @@ class AdsBot:
         numeros = [int(s) for s in t.split() if s.isdigit()]
         total_solicitado = sum(numeros)
 
+        # Lógica de Atacado (Quantidade/Grade)
         if self.memoria == "aguardando_quantidade" and numeros:
             if total_solicitado < 100:
                 return f"⚠️ O total informado ({total_solicitado} peças) é inferior ao mínimo de 100 peças para atacado. Deseja ajustar a quantidade?"
@@ -89,6 +88,9 @@ class AdsBot:
             self.memoria = None
             return "📝 Recebido! Nosso comercial entrará em contato por e-mail em breve. Mais alguma dúvida?"
 
+        # --- CORREÇÃO DA IDENTIFICAÇÃO (PROBLEMA IMAGEM 1 E 2) ---
+        
+        # 1. Verifica se o usuário escolheu uma opção do menu
         opcoes_menu = {
             "1": "1", "reposição": "1", "reposicao": "1",
             "2": "2", "especificação": "2", "especificacao": "2",
@@ -105,55 +107,60 @@ class AdsBot:
         
         if nova_opcao:
             self.memoria = nova_opcao
+            # Se mudou de opção de menu, não limpamos os produtos_sessao imediatamente 
+            # para permitir que "5" funcione após o usuário já ter digitado o produto.
 
+        # 2. Busca de produtos (Correção da Imagem 2 - Identificar se o produto NÃO existe)
         encontrados = []
         for modelo, variacoes in self.VARIACOES.items():
             if any(v in t for v in variacoes):
                 encontrados.append(modelo)
         
+        # Se ele digitou algo mas não encontrou nada no nosso catálogo, limpamos a lista
+        # Isso evita que "Camisa Oxford" responda como "Camisa Polo"
         if not encontrados and not nova_opcao and not any(s in t for s in ["oi", "menu"]):
              self.produtos_sessao = []
         elif encontrados:
             self.produtos_sessao = encontrados
             self.erros_seguidos = 0
 
+        # Saudação / Menu
         if any(s in t for s in ["oi", "olá", "bom dia", "menu", "ajuda", "boa tarde", "boa noite"]):
             self.resetar_sessao()
             return ("👋 Olá! Sou o assistente da Adis Camisaria.\n\n"
                     "1️⃣ **Reposição** | 2️⃣ **Especificações** | 3️⃣ **Atacado** | 4️⃣ **Qualidade** | 5️⃣ **Preços**")
 
-        # --- SEÇÃO ALTERADA PARA INFORMAR QUE NÃO TRABALHAMOS COM O MODELO E LISTAR OS DISPONÍVEIS ---
-        
+        # Respostas Baseadas na Memória
         if self.memoria == "1":
             if self.produtos_sessao:
                 res = [f"{'✅' if self.PRODUTOS[p]['previsao'].lower() == 'disponível' else '📅'} **{p.title()}**: {self.PRODUTOS[p]['previsao']}" for p in self.produtos_sessao]
                 return "Sobre a reposição:\n\n" + "\n".join(res)
-            return f"🔍 Infelizmente não trabalhamos com esse modelo. Trabalhamos com:{self.PRODUTOS_DISPONIVEIS}\n\nDe qual destes você deseja saber a reposição?"
+            return "🔍 De qual modelo você deseja saber a reposição?"
 
         if self.memoria == "2":
             if self.produtos_sessao:
                 res = [f"📋 **{p.title()}**: {self.PRODUTOS[p]['specs']}" for p in self.produtos_sessao]
                 return "Especificações técnicas:\n\n" + "\n".join(res)
-            return f"📋 Modelo não encontrado. Atualmente trabalhamos com:{self.PRODUTOS_DISPONIVEIS}\n\nQual peça você quer ver as especificações?"
+            return "📋 Qual peça você quer ver as especificações?"
 
         if self.memoria == "3":
             if self.produtos_sessao:
                 res = [f"• **{p.title()}**: {self.PRODUTOS[p]['estoque_atacado']} em estoque." for p in self.produtos_sessao]
                 self.memoria = "aguardando_quantidade"
                 return "📦 Estoque Atacado:\n\n" + "\n".join(res) + "\n\nQual a **quantidade total**?"
-            return f"📦 Desculpe, não trabalhamos com esse modelo no atacado. Nossos modelos são:{self.PRODUTOS_DISPONIVEIS}\n\nQual deles você deseja consultar?"
+            return "📦 Para atacado, qual modelo você deseja consultar?"
 
         if self.memoria == "4":
             if self.produtos_sessao:
                 res = [f"✨ **{p.title()}**: {self.PRODUTOS[p]['qualidade']}" for p in self.produtos_sessao]
                 return "Qualidade:\n\n" + "\n".join(res)
-            return f"✨ Não fabricamos este modelo. Nossa linha de produtos inclui:{self.PRODUTOS_DISPONIVEIS}\n\nDe qual você quer conhecer a qualidade?"
+            return "✨ De qual modelo você quer conhecer a qualidade?"
 
         if self.memoria == "5":
             if self.produtos_sessao:
                 res = [f"💰 **{p.title()}**: {self.PRODUTOS[p]['preco']}" for p in self.produtos_sessao]
                 return "Valores atuais:\n\n" + "\n".join(res)
-            return f"💰 Infelizmente não trabalhamos com este modelo. Trabalhamos com:{self.PRODUTOS_DISPONIVEIS}\n\nQual produto você deseja consultar o preço?"
+            return "💰 Qual produto você deseja consultar o preço?"
 
         self.erros_seguidos += 1
         return "🛠️ Transferindo para um atendente..." if self.erros_seguidos >= 2 else "🤔 Não entendi. Pode repetir ou escolher uma opção?"
