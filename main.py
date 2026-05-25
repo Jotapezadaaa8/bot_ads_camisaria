@@ -44,7 +44,6 @@ class AdsBot:
             self.resetar_sessao()
             return "😊 De nada! A Adis Camisaria agradece o contato. Tenha um excelente dia!"
 
-        # Captura de números e o texto para identificar qual quantidade pertence a qual produto
         numeros = [int(s) for s in t.split() if s.isdigit()]
         total_solicitado = sum(numeros)
 
@@ -55,14 +54,11 @@ class AdsBot:
             disponiveis = []
             insuficiente = []
             
-            # Lógica de separação inteligente por item individual mencionado no texto
             for p in self.produtos_sessao:
                 nome_curto = p.replace("camisa ", "").replace("camiseta ", "")
-                # Tenta achar a quantidade específica para aquele produto no texto (ex: "100 linho")
                 encontrou_especifico = False
                 for palavra in t.split():
                     if nome_curto in palavra or p in t:
-                        # Se achou o nome do produto, busca o número mais próximo no texto
                         for n in numeros:
                             if str(n) in t:
                                 qtd_item = n
@@ -74,14 +70,12 @@ class AdsBot:
                                 break
                     if encontrou_especifico: break
                 
-                # Caso o cliente digite apenas um número (ex: "200"), valida contra o total
                 if not encontrou_especifico:
                     if self.PRODUTOS[p]['estoque_atacado'] >= total_solicitado and self.PRODUTOS[p]['estoque_atacado'] >= 100:
                         disponiveis.append(p.title())
                     else:
                         insuficiente.append(p.title())
 
-            # Remove duplicatas das listas
             disponiveis = list(set(disponiveis))
             insuficiente = list(set(insuficiente))
 
@@ -125,7 +119,10 @@ class AdsBot:
         if "regata" in t_limpo: encontrados.append("regata")
         if "basica" in t_limpo or "básica" in t_limpo: encontrados.append("camiseta basica")
             
-        if encontrados:
+        # CORREÇÃO CRÍTICA: Se o usuário digitou algo, mas não é um produto válido, limpa a sessão anterior
+        if not encontrados and any(p.replace("camisa ","").replace("camiseta ","") in t for p in self.PRODUTOS.keys()) == False:
+            self.produtos_sessao = []
+        elif encontrados:
             self.produtos_sessao = encontrados 
             self.erros_seguidos = 0
 
@@ -138,13 +135,13 @@ class AdsBot:
             if self.produtos_sessao:
                 res = [f"{'✅' if self.PRODUTOS[p]['previsao'].lower() == 'disponível' else '📅'} **{p.title()}**: {self.PRODUTOS[p]['previsao']}" for p in self.produtos_sessao]
                 return "Sobre a reposição solicitada:\n\n" + "\n".join(res)
-            return "🔍 De qual modelo você deseja saber a reposição?"
+            return "🔍 Infelizmente não trabalhamos com este modelo. De qual modelo do nosso catálogo você deseja saber a reposição?"
 
         if self.memoria == "2":
             if self.produtos_sessao:
                 res = [f"📋 **{p.title()}**: {self.PRODUTOS[p]['specs']}" for p in self.produtos_sessao]
                 return "Especificações técnicas:\n\n" + "\n".join(res)
-            return "📋 Qual peça você quer ver as especificações?"
+            return "📋 Não encontrei este modelo. Qual peça do catálogo você quer ver as especificações?"
 
         if self.memoria == "3":
             if self.produtos_sessao:
@@ -152,19 +149,19 @@ class AdsBot:
                 self.memoria = "aguardando_quantidade"
                 return (f"📦 Estoque para atacado:\n\n" + "\n".join(res) + 
                         "\n\nQual a **quantidade total** que você deseja? (Mínimo de 100 peças).")
-            return "📦 Para atacado, qual modelo você deseja consultar?"
+            return "📦 Modelo não encontrado. Para atacado, qual modelo do catálogo você deseja consultar?"
 
         if self.memoria == "4":
             if self.produtos_sessao:
                 res = [f"✨ **{p.title()}**: {self.PRODUTOS[p]['qualidade']}" for p in self.produtos_sessao]
                 return "Qualidade do produto:\n\n" + "\n".join(res)
-            return "✨ De qual modelo você quer conhecer a qualidade?"
+            return "✨ Não trabalhamos com este modelo. De qual peça você quer conhecer a qualidade?"
 
         if self.memoria == "5":
             if self.produtos_sessao:
                 res = [f"💰 **{p.title()}**: {self.PRODUTOS[p]['preco']}" for p in self.produtos_sessao]
                 return "Valores atuais:\n\n" + "\n".join(res)
-            return "💰 Qual produto você deseja consultar o preço?"
+            return "💰 Modelo não encontrado. Qual produto do catálogo você deseja consultar o preço?"
 
         self.erros_seguidos += 1
         return "🛠️ Transferindo para um **atendente humano**... 🧑‍💻" if self.erros_seguidos >= 2 else "🤔 Não entendi. Poderia repetir ou escolher uma opção?"
