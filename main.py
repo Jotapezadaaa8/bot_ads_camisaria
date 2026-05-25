@@ -44,8 +44,9 @@ class AdsBot:
         self.memoria = None
         self.produtos_sessao = []
         self.erros_seguidos = 0
-        # String formatada com os modelos disponíveis para facilitar a resposta
-        self.LISTA_DISPONIVEIS = "\n" + "\n".join([f"• {p.title()}" for p in self.PRODUTOS.keys()])
+        
+        # Lista formatada para facilitar a exibição
+        self.PRODUTOS_DISPONIVEIS = "\n" + "\n".join([f"• {p.title()}" for p in self.PRODUTOS.keys()])
 
     def responder(self, mensagem: str) -> str:
         t = mensagem.lower().strip()
@@ -121,37 +122,38 @@ class AdsBot:
             return ("👋 Olá! Sou o assistente da Adis Camisaria.\n\n"
                     "1️⃣ **Reposição** | 2️⃣ **Especificações** | 3️⃣ **Atacado** | 4️⃣ **Qualidade** | 5️⃣ **Preços**")
 
-        # Respostas com listagem de produtos quando não houver seleção válida
+        # --- SEÇÃO ALTERADA PARA INFORMAR QUE NÃO TRABALHAMOS COM O MODELO E LISTAR OS DISPONÍVEIS ---
+        
         if self.memoria == "1":
             if self.produtos_sessao:
                 res = [f"{'✅' if self.PRODUTOS[p]['previsao'].lower() == 'disponível' else '📅'} **{p.title()}**: {self.PRODUTOS[p]['previsao']}" for p in self.produtos_sessao]
                 return "Sobre a reposição:\n\n" + "\n".join(res)
-            return f"🔍 Infelizmente não trabalhamos com este modelo. Atualmente trabalhamos com:{self.LISTA_DISPONIVEIS}\n\nQual deles você deseja consultar a reposição?"
+            return f"🔍 Infelizmente não trabalhamos com esse modelo. Trabalhamos com:{self.PRODUTOS_DISPONIVEIS}\n\nDe qual destes você deseja saber a reposição?"
 
         if self.memoria == "2":
             if self.produtos_sessao:
                 res = [f"📋 **{p.title()}**: {self.PRODUTOS[p]['specs']}" for p in self.produtos_sessao]
                 return "Especificações técnicas:\n\n" + "\n".join(res)
-            return f"📋 Modelo não encontrado. Trabalhamos com os seguintes itens:{self.LISTA_DISPONIVEIS}\n\nQual deles você quer ver as especificações?"
+            return f"📋 Modelo não encontrado. Atualmente trabalhamos com:{self.PRODUTOS_DISPONIVEIS}\n\nQual peça você quer ver as especificações?"
 
         if self.memoria == "3":
             if self.produtos_sessao:
                 res = [f"• **{p.title()}**: {self.PRODUTOS[p]['estoque_atacado']} em estoque." for p in self.produtos_sessao]
                 self.memoria = "aguardando_quantidade"
                 return "📦 Estoque Atacado:\n\n" + "\n".join(res) + "\n\nQual a **quantidade total**?"
-            return f"📦 Desculpe, não trabalhamos com este modelo no atacado. Nossos modelos disponíveis são:{self.LISTA_DISPONIVEIS}\n\nQual você deseja consultar?"
+            return f"📦 Desculpe, não trabalhamos com esse modelo no atacado. Nossos modelos são:{self.PRODUTOS_DISPONIVEIS}\n\nQual deles você deseja consultar?"
 
         if self.memoria == "4":
             if self.produtos_sessao:
                 res = [f"✨ **{p.title()}**: {self.PRODUTOS[p]['qualidade']}" for p in self.produtos_sessao]
                 return "Qualidade:\n\n" + "\n".join(res)
-            return f"✨ Não possuímos informações sobre este modelo. Nossos produtos são:{self.LISTA_DISPONIVEIS}\n\nDe qual você deseja conhecer a qualidade?"
+            return f"✨ Não fabricamos este modelo. Nossa linha de produtos inclui:{self.PRODUTOS_DISPONIVEIS}\n\nDe qual você quer conhecer a qualidade?"
 
         if self.memoria == "5":
             if self.produtos_sessao:
                 res = [f"💰 **{p.title()}**: {self.PRODUTOS[p]['preco']}" for p in self.produtos_sessao]
                 return "Valores atuais:\n\n" + "\n".join(res)
-            return f"💰 Modelo não encontrado em nossa tabela de preços. Trabalhamos com:{self.LISTA_DISPONIVEIS}\n\nQual produto você deseja consultar o valor?"
+            return f"💰 Infelizmente não trabalhamos com este modelo. Trabalhamos com:{self.PRODUTOS_DISPONIVEIS}\n\nQual produto você deseja consultar o preço?"
 
         self.erros_seguidos += 1
         return "🛠️ Transferindo para um atendente..." if self.erros_seguidos >= 2 else "🤔 Não entendi. Pode repetir ou escolher uma opção?"
