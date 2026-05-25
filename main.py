@@ -3,8 +3,9 @@ import streamlit as st
 # 1. CLASSE DO BOT COM INTELIGÊNCIA INTEGRADA
 class AdsBot:
     def __init__(self):
-        self.PRODUTOS = {
-            "polo": {
+        # Base de dados com especificações
+        self.PRODUTOS_DADOS = {
+            "camisa polo": {
                 "previsao": "15/06/2026",
                 "specs": "Algodão Pima com elastano, gola estruturada.",
                 "estoque_atacado": 150, 
@@ -15,17 +16,17 @@ class AdsBot:
                 "previsao": "Disponível",
                 "specs": "Tecido Dry Fit esportivo com proteção UV.",
                 "estoque_atacado": 200, 
-                "qualidade": "Fabricada em tecido Dry Fit esportivo de alta performance com proteção UV integrada. Possui tecnologia avançada de secagem rápida, ideal para atividades físicas intensas.", 
+                "qualidade": "Fabricada em tecido Dry Fit esportivo de alta performance com proteção UV integrada.", 
                 "preco": "R$ 39,90"
             },
-            "linho": {
+            "camisa linho": {
                 "previsao": "05/07/2026",
                 "specs": "Linho Puro com corte alfaiataria slim.",
                 "estoque_atacado": 20, 
                 "qualidade": "Linho premium de origem sustentável.", 
                 "preco": "R$ 159,00"
             },
-            "basica" "básica": {
+            "camiseta basica": {
                 "previsao": "Disponível",
                 "specs": "100% Algodão 30.1 penteado.",
                 "estoque_atacado": 500, 
@@ -33,6 +34,16 @@ class AdsBot:
                 "preco": "R$ 45,00"
             }
         }
+        
+        # Mapeamento de variações para os modelos (O que o usuário pode digitar)
+        self.VARIACOES = {
+            "camisa polo": ["polo", "gola polo", "camisa polo", "camisaria polo"],
+            "regata": ["regata", "regatas", "camisa regata", "camiseta regata", "dry fit"],
+            "camisa linho": ["linho", "camisa de linho", "camisa linho", "linhos"],
+            "camiseta basica": ["basica", "básica", "camiseta basica", "camiseta básica", "tshirt", "t-shirt", "algodao"]
+        }
+
+        self.PRODUTOS = self.PRODUTOS_DADOS # Mantendo compatibilidade com o resto do código
         self.memoria = None
         self.produtos_sessao = []
         self.erros_seguidos = 0
@@ -55,14 +66,13 @@ class AdsBot:
             insuficiente = []
             
             for p in self.produtos_sessao:
-                nome_curto = p.replace("camisa ", "").replace("camiseta ", "")
                 encontrou_especifico = False
-                for palavra in t.split():
-                    if nome_curto in palavra or p in t:
+                # Busca variações específicas dentro do texto para associar ao número
+                for var in self.VARIACOES[p]:
+                    if var in t:
                         for n in numeros:
                             if str(n) in t:
-                                qtd_item = n
-                                if self.PRODUTOS[p]['estoque_atacado'] >= qtd_item and self.PRODUTOS[p]['estoque_atacado'] >= 100:
+                                if self.PRODUTOS[p]['estoque_atacado'] >= n and self.PRODUTOS[p]['estoque_atacado'] >= 100:
                                     disponiveis.append(p.title())
                                 else:
                                     insuficiente.append(p.title())
@@ -84,7 +94,6 @@ class AdsBot:
                 msg_retorno = ""
                 if disponiveis:
                     msg_retorno += f"✅ Para o modelo ({', '.join(disponiveis)}), temos estoque disponível para envio imediato!\n\n"
-                
                 msg_retorno += (f"⚠️ Porém, a quantidade em estoque para o modelo ({', '.join(insuficiente)}) é abaixo do necessário para pronta-entrega em atacado.\n\n"
                                 f"Indicamos fazer a parte deste modelo por **encomenda**! Mantemos o preço de atacado e produzimos em até 15 dias. Deseja seguir com os itens disponíveis e encomendar o restante?")
                 return msg_retorno
@@ -112,16 +121,15 @@ class AdsBot:
         elif "4" in t or "qualidade" in t: self.memoria = "4"
         elif "5" in t or "preço" in t: self.memoria = "5"
 
-        t_limpo = f" {t} ".replace(" de ", " ").replace(" da ", " ").replace(" do ", " ")
+        # Lógica de busca por variações
         encontrados = []
-        if "linho" in t_limpo: encontrados.append("camisa linho")
-        if "polo" in t_limpo: encontrados.append("camisa polo")
-        if "regata" in t_limpo: encontrados.append("regata")
-        if "basica" in t_limpo or "básica" in t_limpo: encontrados.append("camiseta basica")
+        for modelo, lista_variacoes in self.VARIACOES.items():
+            if any(f" {v} " in f" {t} " or v == t for v in lista_variacoes):
+                encontrados.append(modelo)
             
-        # CORREÇÃO CRÍTICA: Se o usuário digitou algo, mas não é um produto válido, limpa a sessão anterior
-        if not encontrados and any(p.replace("camisa ","").replace("camiseta ","") in t for p in self.PRODUTOS.keys()) == False:
-            self.produtos_sessao = []
+        is_opcao_menu = t in ["1", "2", "3", "4", "5"]
+        if not encontrados and not is_opcao_menu and self.memoria:
+             self.produtos_sessao = []
         elif encontrados:
             self.produtos_sessao = encontrados 
             self.erros_seguidos = 0
