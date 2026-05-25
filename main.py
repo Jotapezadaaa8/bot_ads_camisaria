@@ -35,7 +35,7 @@ class AdsBot:
             }
         }
         
-        # Mapeamento de variações para os modelos (O que o usuário pode digitar)
+        # Mapeamento de variações para os modelos
         self.VARIACOES = {
             "camisa polo": ["polo", "gola polo", "camisa polo", "camisaria polo"],
             "regata": ["regata", "regatas", "camisa regata", "camiseta regata", "dry fit"],
@@ -43,7 +43,7 @@ class AdsBot:
             "camiseta basica": ["basica", "básica", "camiseta basica", "camiseta básica", "tshirt", "t-shirt", "algodao"]
         }
 
-        self.PRODUTOS = self.PRODUTOS_DADOS # Mantendo compatibilidade com o resto do código
+        self.PRODUTOS = self.PRODUTOS_DADOS 
         self.memoria = None
         self.produtos_sessao = []
         self.erros_seguidos = 0
@@ -67,7 +67,6 @@ class AdsBot:
             
             for p in self.produtos_sessao:
                 encontrou_especifico = False
-                # Busca variações específicas dentro do texto para associar ao número
                 for var in self.VARIACOES[p]:
                     if var in t:
                         for n in numeros:
@@ -113,26 +112,39 @@ class AdsBot:
             self.memoria = None
             return "📝 Recebido! Enviamos sua solicitação com a grade ao nosso setor comercial, em breve o senhor(a) receberá um e-mail com a confirmação do pedido. Mais alguma dúvida?"
 
+        # --- ORDEM CORRIGIDA AQUI ---
+        # 1. Identifica se é uma opção do menu primeiro
+        is_opcao_menu = False
         if "1" in t or "reposição" in t: 
             self.memoria = "1"
+            is_opcao_menu = True
             if t in ["1", "reposição"]: self.produtos_sessao = []
-        elif "2" in t or "especificação" in t: self.memoria = "2"
-        elif "3" in t or "atacado" in t: self.memoria = "3"
-        elif "4" in t or "qualidade" in t: self.memoria = "4"
-        elif "5" in t or "preço" in t: self.memoria = "5"
+        elif "2" in t or "especificação" in t: 
+            self.memoria = "2"
+            is_opcao_menu = True
+        elif "3" in t or "atacado" in t: 
+            self.memoria = "3"
+            is_opcao_menu = True
+        elif "4" in t or "qualidade" in t: 
+            self.memoria = "4"
+            is_opcao_menu = True
+        elif "5" in t or "preço" in t: 
+            self.memoria = "5"
+            is_opcao_menu = True
 
-        # Lógica de busca por variações
+        # 2. Busca por variações de produtos
         encontrados = []
         for modelo, lista_variacoes in self.VARIACOES.items():
             if any(f" {v} " in f" {t} " or v == t for v in lista_variacoes):
                 encontrados.append(modelo)
             
-        is_opcao_menu = t in ["1", "2", "3", "4", "5"]
-        if not encontrados and not is_opcao_menu and self.memoria:
-             self.produtos_sessao = []
-        elif encontrados:
+        # 3. Gerencia a sessão sem limpar escolhas legítimas de menu
+        if encontrados:
             self.produtos_sessao = encontrados 
             self.erros_seguidos = 0
+        elif not is_opcao_menu and not any(s in t for s in ["oi", "olá", "bom dia", "menu"]):
+            # Só limpa se não for menu, não for oi e não encontrar produto
+            self.produtos_sessao = []
 
         if any(s in t for s in ["oi", "olá", "bom dia", "menu", "ajuda", "valeu", "cole", "coe", "fala","boa tarde", "boa noite"]):
             self.resetar_sessao()
