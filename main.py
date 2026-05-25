@@ -64,7 +64,6 @@ class AdsBot:
             insuficiente = []
             quantidades_por_produto = {}
             
-            # Distribuição das quantidades para checagem individual
             if len(numeros) == len(self.produtos_sessao):
                 for i, p in enumerate(self.produtos_sessao):
                     quantidades_por_produto[p] = numeros[i]
@@ -119,11 +118,20 @@ class AdsBot:
             if any(v in t for v in variacoes):
                 encontrados.append(modelo)
         
+        # --- FILTRO DE NICHO (ALFAIATARIA) ---
+        # Se o usuário mencionou produtos comuns que NÃO temos (esporte, jeans, etc)
+        itens_fora_nicho = ["bermuda", "calça", "jeans", "moletom", "jaqueta", "sapato", "tenis", "esporte", "academia"]
+        if any(item in t for item in itens_fora_nicho) and not encontrados:
+            return ("🚫 A Adis Camisaria é especialista em **Alfaiataria Premium**.\n\n"
+                    "Não trabalhamos com essa linha de produtos. Que tal conferir nossas **Camisas de Linho** ou **Polos Pima**? São excelentes opções para manter a elegância.")
+
         if encontrados:
             self.produtos_sessao = encontrados
             self.erros_seguidos = 0
-        elif not nova_opcao and not any(s in t for s in ["oi", "menu"]):
-            if self.memoria not in ["1","2","3","4","5"]: self.produtos_sessao = []
+        elif not nova_opcao and not any(s in t for s in ["oi", "menu", "ajuda"]):
+            # Se ele digitou algo que não reconhecemos e não é saudação, tratamos como fora de linha
+            if self.memoria not in ["1","2","3","4","5"] and len(t) > 3:
+                return "🧐 Não trabalhamos com essa linha de produtos. Nossa especialidade é a **Alfaiataria Masculina**. Deseja ver os modelos disponíveis no Menu?"
 
         if any(s in t for s in ["oi", "olá", "menu", "ajuda"]):
             self.resetar_sessao()
