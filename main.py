@@ -120,7 +120,11 @@ class AdsBot:
         
         # --- FILTRO DE NICHO (RESPOSTA IMEDIATA PARA ITENS FORA DE LINHA) ---
         if not encontrados and not nova_opcao and not any(s in t for s in ["oi", "olá", "menu", "ajuda"]):
-            # Caso contenha palavras de esporte/outros times ou o item não esteja no catálogo
+            # Se for a primeira falha, informa o nicho. Se for a segunda, escala.
+            if self.erros_seguidos >= 1:
+                return "🛠️ Não consegui te ajudar com essa solicitação. Vou transferir sua questão para um atendimento humano agora mesmo."
+            
+            self.erros_seguidos += 1
             return ("🚫 A Adis Camisaria é especialista em **Alfaiataria Premium**.\n\n"
                     "Não trabalhamos com essa linha de produtos (como artigos esportivos ou casuais fora do catálogo). "
                     "Que tal conferir nossas **Camisas de Linho** ou **Polos Pima**? São nossas especialidades.")
@@ -168,8 +172,11 @@ class AdsBot:
                 return "Valores atuais:\n\n" + "\n".join(res)
             return "💰 Qual produto você deseja consultar o preço?"
 
+        # Fallback para entradas genéricas não reconhecidas
         self.erros_seguidos += 1
-        return "🛠️ Transferindo para um atendente..." if self.erros_seguidos >= 2 else "🤔 Não entendi. Pode repetir ou escolher uma opção?"
+        if self.erros_seguidos >= 2:
+            return "🛠️ Vou transferir sua questão para um atendimento humano agora mesmo."
+        return "🤔 Não entendi. Pode repetir ou escolher uma opção?"
 
     def resetar_sessao(self):
         self.memoria, self.produtos_sessao, self.erros_seguidos = None, [], 0
